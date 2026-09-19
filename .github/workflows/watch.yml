@@ -41,7 +41,7 @@ jobs:
       - name: Run
         env:
           TARGET_DATES: "2026-10-17"
-          TOUR_KEYWORD: ""   # 種別を絞るなら "ガイドツアー" などを入れる
+          TOUR_KEYWORD: "通常見学"   # 全コース対象にするなら空文字にする
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           MIN_INTERVAL: "1800"
