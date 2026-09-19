@@ -27,7 +27,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-VERSION = "v4"
+VERSION = "v5"
 RESERVE_URL = "https://distillery.nikka.com/yoichi/reservation"
 API_HINT = "/api/reserveSlot/list"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -46,6 +46,23 @@ def targets():
 
 def keyword():
     return os.environ.get("TOUR_KEYWORD", "通常見学").strip()
+
+
+def booking_window():
+    """Web予約できる範囲（本日〜本日+WINDOW_DAYS）。既定28日＝公式の「先4週間分」。
+    APIは過去日や未解禁日も定員つきで返すため、この範囲外は空きとみなさない。"""
+    days = int(os.environ.get("WINDOW_DAYS", "28"))
+    today = datetime.now(JST).date()
+    return today, today + timedelta(days=days)
+
+
+def in_window(datestr):
+    lo, hi = booking_window()
+    try:
+        d = datetime.strptime(datestr, "%Y-%m-%d").date()
+    except Exception:
+        return False
+    return lo <= d <= hi
 
 
 def hhmm(t):
@@ -190,13 +207,17 @@ def main():
         for day in date_info:
             d = day.get("date")
             _, rows = slots_for(date_info, d)
+            if not in_window(d):
+                continue
             avail = open_slots(rows or [], kw)
             if avail:
                 hit_any = True
                 print(f"  {d}: " + " / ".join(
                     f"{r['time']}({r['name']}/残{r['remain']})" for r in avail))
         if not hit_any:
-            print(f"  絞り込み「{kw}」に該当する空きは全期間でありません")
+            print(f"  絞り込み「{kw}」に該当する空きは予約可能期間内にありません")
+        lo, hi = booking_window()
+        print(f"  （予約可能期間として {lo} 〜 {hi} を対象にしています）")
 
     state = load_state()
     now = time.time()
@@ -216,6 +237,11 @@ def main():
             for r in rows:
                 print(f"  {r['time']} [{r['type']}] {r['name']} "
                       f"残{r['remain']} web_disp={r['web']} {r['fee'][:20]}")
+
+        if not in_window(t):
+            lo, hi = booking_window()
+            print(f"  → 予約可能期間（{lo}〜{hi}）の外なので判定しません")
+            continue
 
         avail = open_slots(rows, kw)
         if not avail:
