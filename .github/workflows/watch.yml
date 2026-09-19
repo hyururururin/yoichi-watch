@@ -2,8 +2,8 @@ name: yoichi-watch
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # 10分おき（キャンセルは時間帯を問わず出るため終日）
-  workflow_dispatch:
+      - cron: "7,22,37,52 * * * *"
+workflow_dispatch:
     inputs:
       mode:
         description: "実行モード"
