@@ -27,7 +27,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-VERSION = "v3"
+VERSION = "v4"
 RESERVE_URL = "https://distillery.nikka.com/yoichi/reservation"
 API_HINT = "/api/reserveSlot/list"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -179,6 +179,24 @@ def main():
         stamp = datetime.now(JST).strftime("%Y%m%d-%H%M%S")
         (DEBUG_DIR / f"date_info-{stamp}.json").write_text(
             json.dumps(date_info, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    if args.dump:
+        notify("接続テスト",
+               f"{datetime.now(JST).strftime('%m/%d %H:%M')} check_yoichi {VERSION} "
+               f"からのテスト送信です。これが届けば通知経路は正常です。")
+
+        print("\n===== 空きのある日 一覧 =====")
+        hit_any = False
+        for day in date_info:
+            d = day.get("date")
+            _, rows = slots_for(date_info, d)
+            avail = open_slots(rows or [], kw)
+            if avail:
+                hit_any = True
+                print(f"  {d}: " + " / ".join(
+                    f"{r['time']}({r['name']}/残{r['remain']})" for r in avail))
+        if not hit_any:
+            print(f"  絞り込み「{kw}」に該当する空きは全期間でありません")
 
     state = load_state()
     now = time.time()
