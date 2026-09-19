@@ -1,0 +1,68 @@
+name: yoichi-watch
+
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"   # 15分間隔。混雑する毎時0分ちょうどを避けて分をずらしている
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "実行モード"
+        type: choice
+        options: [check, dump]
+        default: check
+
+concurrency:
+  group: yoichi-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Restore state
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: yoichi-state-${{ github.run_id }}
+          restore-keys: yoichi-state-
+
+      - name: Run
+        env:
+          TARGET_DATES: "2026-10-17"
+          TOUR_KEYWORD: "通常見学"   # 全コース対象にするなら空文字にする
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          MIN_INTERVAL: "1800"
+        run: |
+          if [ "${{ inputs.mode }}" = "dump" ]; then
+            python check_yoichi.py --dump
+          else
+            python check_yoichi.py
+          fi
+
+      - name: Upload debug files
+        if: inputs.mode == 'dump'
+        uses: actions/upload-artifact@v4
+        with:
+          name: yoichi-debug
+          path: debug/
+          retention-days: 7
+
+      - name: Save state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: yoichi-state-${{ github.run_id }}
