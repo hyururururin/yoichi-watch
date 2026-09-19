@@ -27,6 +27,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+VERSION = "v3"
 RESERVE_URL = "https://distillery.nikka.com/yoichi/reservation"
 API_HINT = "/api/reserveSlot/list"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -169,6 +170,7 @@ def main():
     args = ap.parse_args()
 
     kw = keyword()
+    print(f"===== check_yoichi {VERSION} =====")
     date_info = fetch_date_info()
     print(f"date_info: {len(date_info)} 日分 / 絞り込み: {kw or '(なし)'}")
 
