@@ -235,6 +235,18 @@ def main():
             print(f"\n=== {t} ===")
             print(f"  API判定: {api_v} (ヒット {len(hits)} 件)")
             print(f"  TEXT判定: {txt_v} / 抜粋: {window[:120]}")
+            for i, h in enumerate(hits, 1):
+                blob = json.dumps(h["record"], ensure_ascii=False)
+                print(f"  --- ヒット{i} ({len(blob)} 文字) from {h['url']}")
+                print("  " + blob[:1500])
+        print("\n=== 全APIのキー名一覧 ===")
+        seen = set()
+        for cap in captured:
+            for path, val in walk(cap["body"]):
+                key = re.sub(r"\[\d+\]", "[]", path)
+                if key not in seen:
+                    seen.add(key)
+                    print(f"  {key} = {str(val)[:60]}")
         return
 
     state = load_state()
