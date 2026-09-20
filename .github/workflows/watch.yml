@@ -18,7 +18,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -47,12 +47,24 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           MIN_INTERVAL: "1800"
+          LOOP_MINUTES: "50"     # 1回の起動で粘る時間
+          LOOP_INTERVAL: "300"   # その間のチェック間隔（秒）
         run: |
           if [ "${{ inputs.mode }}" = "dump" ]; then
             python check_yoichi.py --dump
-          else
-            python check_yoichi.py
+            exit 0
           fi
+          END=$(( $(date +%s) + LOOP_MINUTES * 60 ))
+          N=0
+          while [ "$(date +%s)" -lt "$END" ]; do
+            N=$((N + 1))
+            echo "----- 巡回 $N / $(date -u -d '+9 hours' '+%H:%M') JST -----"
+            python check_yoichi.py || echo "[warn] この回は失敗。継続します"
+            REMAIN=$(( END - $(date +%s) ))
+            [ "$REMAIN" -le "$LOOP_INTERVAL" ] && break
+            sleep "$LOOP_INTERVAL"
+          done
+          echo "----- 巡回終了（計 $N 回）-----"
 
       - name: Upload debug files
         if: inputs.mode == 'dump'
