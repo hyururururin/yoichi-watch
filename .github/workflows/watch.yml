@@ -2,7 +2,8 @@ name: yoichi-watch
 
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"   # 15分間隔。混雑する毎時0分ちょうどを避けて分をずらしている
+    # 連鎖が途切れたときに復帰させる保険。3時間おき
+    - cron: "17 */3 * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -10,6 +11,10 @@ on:
         type: choice
         options: [check, dump]
         default: check
+
+# 自分で自分を起動するために actions: write が必要
+permissions:
+  actions: write
 
 concurrency:
   group: yoichi-watch
@@ -73,6 +78,22 @@ jobs:
           name: yoichi-debug
           path: debug/
           retention-days: 7
+
+      # 巡回が終わったら自分で次を呼ぶ。scheduleの間引きを回避するため。
+      # 停止したいときは Actions 画面で workflow を Disable すれば連鎖も止まる。
+      - name: Chain next run
+        if: inputs.mode != 'dump'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          QUEUED=$(gh run list --workflow watch.yml --status queued \
+                     --json databaseId --jq 'length' 2>/dev/null || echo 0)
+          if [ "${QUEUED:-0}" -gt 0 ]; then
+            echo "既に待機中の実行があるため連鎖しません（queued=$QUEUED）"
+            exit 0
+          fi
+          gh workflow run watch.yml -f mode=check
+          echo "次の実行を起動しました"
 
       - name: Save state
         if: always()
